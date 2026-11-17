@@ -1,0 +1,35 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Local development tools and caches
+.venv
+.uv-cache/
+.ruff_cache/
+/.claude/
+/.codex/
+AGENTS.md
+
+# Downloaded data
+/data/
+
+# Local secrets / sessions
+/.env
+/.env.*
+!/.env.example
+/cookies.txt
+/session/
+/task/
+/tasks/
+/target.json
+/cache/
+
+# Local maintenance documentation (kept outside Git and release archives)
+/docs/
+
+# Local upstream checkouts
+/reference/

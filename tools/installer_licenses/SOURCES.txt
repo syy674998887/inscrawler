@@ -1,0 +1,7 @@
+inscrawler uses the Qt and Qt for Python shared libraries supplied by PySide6.
+The bundled versions appear in uv.lock. Qt's open-source license texts are
+included in this directory.
+
+Qt source archives: https://download.qt.io/official_releases/qt/
+Qt for Python sources: https://code.qt.io/cgit/pyside/pyside-setup.git/
+License texts: https://github.com/qt/qtbase/tree/v6.11.0/LICENSES

@@ -1,0 +1,83 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  installer:
+    needs: checks
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          architecture: x64
+      - name: Match the release tag to the project version
+        shell: python
+        run: |
+          import os
+          import tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+          if os.environ["GITHUB_REF_NAME"] != f"v{version}":
+              raise SystemExit(f"Expected tag v{version} for this checkout")
+      - name: Install build tools
+        run: python -m pip install uv==0.12.10
+      - name: Install locked Windows build dependencies
+        run: uv sync --locked --no-dev --group installer
+      - name: Build Windows setup executable
+        run: uv run --no-sync python tools/build_windows_installer.py
+      - name: Install, launch and uninstall on the runner
+        run: uv run --no-sync python tools/check_windows_installer.py --install
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer
+          path: dist/inscrawler-*-win64-setup.exe
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    needs: installer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-installer
+          path: dist
+      - name: Publish installer and release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          name="inscrawler-${TAG#v}-win64-setup.exe"
+          asset="dist/$name"
+          test -s "$asset"
+          if release=$(gh release view "$TAG" --json isDraft,assets); then
+            if jq -e '.isDraft' <<< "$release" >/dev/null; then
+              gh release upload "$TAG" "$asset" --clobber
+              gh release edit "$TAG" --draft=false
+            elif ! jq -e --arg name "$name" 'any(.assets[]; .name == $name and (.state | ascii_downcase) == "uploaded")' <<< "$release" >/dev/null; then
+              gh release upload "$TAG" "$asset"
+            fi
+          else
+            gh release create "$TAG" "$asset" --verify-tag --generate-notes --title "inscrawler $TAG"
+          fi
